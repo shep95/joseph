@@ -126,6 +126,47 @@ async def _fetch_one(session, plan: QueryPlan, timeout: int) -> list[RawResult]:
     return _parse_ddg(body, q, plan.query.strategy)
 
 
+async def verify_links(urls: list[str], *, timeout: int, max_concurrency: int = 8) -> dict[str, bool]:
+    """check that each url actually resolves (status < 400).
+
+    tries a lightweight HEAD first, falls back to a ranged GET for servers that reject
+    HEAD. returns {url: working}. best-effort -> import of aiohttp is local, failures map
+    to False rather than raising. this is what makes /joseph dork return *working* links.
+    """
+    try:
+        import aiohttp
+    except Exception:
+        return {u: False for u in urls}
+
+    sem = asyncio.Semaphore(max_concurrency)
+    results: dict[str, bool] = {}
+
+    async def _check(session, url: str) -> None:
+        ok = False
+        async with sem:
+            for method in ("head", "get"):
+                try:
+                    req = getattr(session, method)
+                    headers = {"User-Agent": _UA}
+                    if method == "get":
+                        headers["Range"] = "bytes=0-2048"
+                    async with req(url, headers=headers, timeout=timeout, allow_redirects=True) as resp:
+                        if resp.status < 400:
+                            ok = True
+                            break
+                        # some hosts 405 on HEAD -> let the get attempt decide
+                        if method == "head" and resp.status in (403, 405, 501):
+                            continue
+                        break
+                except Exception:
+                    continue
+        results[url] = ok
+
+    async with aiohttp.ClientSession() as session:
+        await asyncio.gather(*(_check(session, u) for u in urls))
+    return results
+
+
 async def collect_live(
     plans: list[QueryPlan],
     *,

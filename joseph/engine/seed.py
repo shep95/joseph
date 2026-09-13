@@ -33,7 +33,26 @@ KNOWN_SURFACES: dict[str, str] = {
     "crunchbase": "crunchbase.com",
 }
 
+# document-oriented filetypes (the safe default)
 DEFAULT_FILETYPES: tuple[str, ...] = ("pdf", "doc", "docx", "ppt", "pptx", "xls", "xlsx", "txt")
+
+# leak / exposed-data filetypes -> config dumps, databases, logs, spreadsheets that get
+# left public. this is discovery of publicly indexed exposure, not exploitation.
+LEAK_FILETYPES: tuple[str, ...] = (
+    "sql", "env", "log", "csv", "json", "xml", "conf", "cfg", "ini", "bak", "yml", "yaml",
+)
+
+# named filetype profiles so a user does not have to know extensions -> the logic picks them.
+FILETYPE_PROFILES: dict[str, tuple[str, ...]] = {
+    "documents": DEFAULT_FILETYPES,
+    "leaks": LEAK_FILETYPES,
+    "all": tuple(dict.fromkeys(DEFAULT_FILETYPES + LEAK_FILETYPES)),
+}
+
+
+def filetypes_for_profile(profile: str) -> list[str]:
+    """resolve a profile name to a filetype list; unknown -> documents."""
+    return list(FILETYPE_PROFILES.get((profile or "documents").strip().lower(), DEFAULT_FILETYPES))
 
 _DATE_RE = re.compile(r"^\d{4}(-\d{2}(-\d{2})?)?$")
 

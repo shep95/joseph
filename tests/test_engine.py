@@ -11,11 +11,11 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
-from joseph.engine import generator, mutation, scoring, normalize, relevance, entities, resolution, pipeline
+from joseph.engine import generator, mutation, scoring, normalize, relevance, entities, resolution, pipeline, providers
 from joseph.engine.grammar import TermKind
 from joseph.engine.metrics import jaro_winkler, levenshtein, levenshtein_ratio
 from joseph.engine.providers import RawResult
-from joseph.engine.seed import IdentitySeed
+from joseph.engine.seed import IdentitySeed, filetypes_for_profile
 from joseph.report.model import build_dataset
 from joseph.report.render import render_markdown
 
@@ -108,6 +108,43 @@ def test_full_pipeline_plan_only_builds_report():
     assert ds.report_id.startswith("AIA-")
     assert ds.data_hash
     assert len(ds.query_family) > 0
+
+
+def test_filetype_profiles():
+    assert "pdf" in filetypes_for_profile("documents")
+    leaks = filetypes_for_profile("leaks")
+    assert "sql" in leaks and "env" in leaks and "log" in leaks
+    all_ft = filetypes_for_profile("all")
+    assert set(filetypes_for_profile("documents")) <= set(all_ft)
+    assert set(leaks) <= set(all_ft)
+    assert filetypes_for_profile("nonsense") == filetypes_for_profile("documents")  # safe default
+
+
+def test_generator_uses_leak_filetypes_when_selected():
+    seed = IdentitySeed.build(name="Jane Roe", filetypes=",".join(filetypes_for_profile("leaks")))
+    strategies = {q.strategy for q in generator.generate(seed)}
+    assert "document:sql" in strategies
+    assert "document:env" in strategies
+
+
+def test_ddg_redirect_unwraps_to_direct_link():
+    wrapped = "//duckduckgo.com/l/?uddg=https%3A%2F%2Fexample.com%2Fleak%2Fdata.sql&rut=abc"
+    assert providers._unwrap_ddg(wrapped) == "https://example.com/leak/data.sql"
+    plain = "https://example.org/page"
+    assert providers._unwrap_ddg(plain) == plain
+
+
+def test_ddg_parse_extracts_direct_result_urls():
+    body = (
+        '<a rel="nofollow" class="result__a" href="//duckduckgo.com/l/?uddg='
+        'https%3A%2F%2Ftarget.com%2Fpath">Target Page</a>'
+        '<a class="result__snippet">a matching snippet</a>'
+    )
+    results = providers._parse_ddg(body, "asher shepherd newton", "identity_direct")
+    assert len(results) == 1
+    assert results[0].url == "https://target.com/path"
+    assert results[0].title == "Target Page"
+    assert results[0].strategy == "identity_direct"
 
 
 def _run_all() -> int:

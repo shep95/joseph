@@ -12,14 +12,16 @@ designed to run as a railway worker: `python -m joseph.bot`.
 from __future__ import annotations
 
 import io
+import json
 import sys
 
 import discord
 from discord import app_commands
 
 from .config import Config
+from .engine import providers
 from .engine.pipeline import investigate as run_investigate, plan_only
-from .engine.seed import IdentitySeed
+from .engine.seed import IdentitySeed, filetypes_for_profile
 from .report.model import build_dataset
 from .report.render import render_markdown
 from .shepherd.pattern_engine import select_patterns
@@ -72,7 +74,11 @@ def register_commands(tree: app_commands.CommandTree, config: Config) -> None:
         embed = discord.Embed(title="joseph", description=INTRO, color=0x0B7285)
         embed.add_field(
             name="/joseph dork",
-            value="generate a ranked query family from what you know. no network calls.",
+            value=(
+                "run the dorks and return the **direct working links** to what was found "
+                "(not google search-result pages). pick a `filetype_profile` "
+                "(documents / leaks / all) — you don't need to know extensions."
+            ),
             inline=False,
         )
         embed.add_field(
@@ -86,7 +92,7 @@ def register_commands(tree: app_commands.CommandTree, config: Config) -> None:
         )
         await interaction.response.send_message(embed=embed, ephemeral=True)
 
-    @joseph.command(name="dork", description="generate a ranked query family for a subject")
+    @joseph.command(name="dork", description="run dorks and return the DIRECT working links (not search-result pages)")
     @app_commands.describe(
         name="full name of the subject",
         usernames="known usernames / handles (comma separated)",
@@ -96,11 +102,20 @@ def register_commands(tree: app_commands.CommandTree, config: Config) -> None:
         occupations="known occupations / roles (comma separated)",
         domains="known domains (comma separated)",
         sites="explicit site targets, name or domain (comma separated)",
-        filetypes="document filetypes to hunt (comma separated, default pdf,doc,...)",
+        filetype_profile="which filetypes the dork logic hunts (you don't need to know extensions)",
+        filetypes="OPTIONAL override: exact filetypes (comma separated). leave blank to use the profile.",
         exclusions="terms to exclude (comma separated)",
         since="earliest date YYYY or YYYY-MM or YYYY-MM-DD",
         until="latest date YYYY or YYYY-MM or YYYY-MM-DD",
-        top="how many top queries to show inline (default 12)",
+        verify="check each link actually resolves and drop dead ones (default true)",
+        top="how many links to show inline (default 15)",
+    )
+    @app_commands.choices(
+        filetype_profile=[
+            app_commands.Choice(name="documents (pdf, doc, ppt, xls, txt)", value="documents"),
+            app_commands.Choice(name="leaks (sql, env, log, csv, json, conf, bak, ...)", value="leaks"),
+            app_commands.Choice(name="all (documents + leaks)", value="all"),
+        ]
     )
     async def dork_cmd(
         interaction: discord.Interaction,
@@ -112,16 +127,22 @@ def register_commands(tree: app_commands.CommandTree, config: Config) -> None:
         occupations: str = "",
         domains: str = "",
         sites: str = "",
+        filetype_profile: app_commands.Choice[str] = None,
         filetypes: str = "",
         exclusions: str = "",
         since: str = "",
         until: str = "",
-        top: int = 12,
+        verify: bool = True,
+        top: int = 15,
     ) -> None:
+        profile = filetype_profile.value if filetype_profile else "documents"
+        # explicit filetypes override the profile; otherwise the logic picks them for you
+        resolved_filetypes = filetypes.strip() or ",".join(filetypes_for_profile(profile))
+
         seed = _seed_from_options(
             name=name, usernames=usernames, emails=emails, organizations=organizations,
             locations=locations, occupations=occupations, domains=domains, sites=sites,
-            filetypes=filetypes, exclusions=exclusions, since=since, until=until,
+            filetypes=resolved_filetypes, exclusions=exclusions, since=since, until=until,
         )
         if seed.is_empty:
             await interaction.response.send_message(
@@ -132,27 +153,86 @@ def register_commands(tree: app_commands.CommandTree, config: Config) -> None:
         await interaction.response.defer(thinking=True)
         inv = plan_only(seed)
         top = max(1, min(top, 25))
+        subject = seed.name or (seed.usernames[0] if seed.usernames else "subject")
 
+        # execute the top dorks and collect the DIRECT destination links (ddg html endpoint
+        # returns real result urls; we unwrap ddg redirects to the true target).
+        max_q = min(max(config.max_live_queries, 10), 14)
+        raws = await providers.collect_live(
+            inv.plans, max_queries=max_q, timeout=config.http_timeout, pause_seconds=0.8
+        )
+
+        # dedupe by url, keep the first dork + title that surfaced it
+        seen: set[str] = set()
+        results = []
+        for r in raws:
+            if r.url in seen:
+                continue
+            seen.add(r.url)
+            results.append(r)
+
+        if not results:
+            # live collection returned nothing (blocked / no organic results). fall back to
+            # giving the ready-to-run search urls so the run is never empty.
+            lines = [
+                f"**joseph** -> live collection returned no direct links for `{subject}` "
+                f"(the search endpoint may be rate-limiting). here are the ready-to-run dorks "
+                f"(profile: **{profile}**):\n"
+            ]
+            for i, p in enumerate(inv.plans[:top], start=1):
+                lines.append(f"{i}. `{p.query.render('google')}`\n    <{p.urls['google']}>")
+            for c in _chunk("\n".join(lines)):
+                await interaction.followup.send(content=c)
+            return
+
+        # verify links resolve, so we return WORKING links, not dead search hits
+        working_map: dict[str, bool] = {}
+        if verify:
+            working_map = await providers.verify_links(
+                [r.url for r in results][:40], timeout=config.http_timeout
+            )
+        # working first, then the rest, preserving rank order within each group
+        results.sort(key=lambda r: (0 if working_map.get(r.url, not verify) else 1, r.rank))
+
+        working_count = sum(1 for r in results if working_map.get(r.url, not verify))
         header = (
-            f"**joseph** -> {inv.query_count} queries ranked for "
-            f"`{seed.name or seed.usernames[0] if seed.usernames else 'subject'}`. top {top}:\n"
+            f"**joseph** -> {len(results)} direct links for `{subject}` "
+            f"(profile: **{profile}**"
+            + (f", {working_count} verified reachable" if verify else "")
+            + "):\n"
         )
         body_lines = []
-        for i, p in enumerate(inv.plans[:top], start=1):
-            body_lines.append(f"{i}. `{p.query.render('google')}`  (score {p.scored.score:.2f})")
-            body_lines.append(f"    <{p.urls['google']}>")
+        for i, r in enumerate(results[:top], start=1):
+            mark = "" if not verify else ("✅ " if working_map.get(r.url) else "⚠️ ")
+            title = (r.title or r.url)[:90]
+            body_lines.append(f"{i}. {mark}[{title}]({r.url})")
+            body_lines.append(f"    ↳ found by `{r.strategy}`")
         body = header + "\n".join(body_lines)
 
-        # full plan as an attached file
-        full = "\n".join(
-            f"{i}. [{p.scored.score:.2f}] {p.query.strategy}\n"
-            f"   google: {p.query.render('google')}\n"
-            f"   bing:   {p.query.render('bing')}\n"
-            f"   ddg:    {p.query.render('ddg')}\n"
-            f"   url:    {p.urls['google']}\n"
-            for i, p in enumerate(inv.plans, start=1)
+        payload = {
+            "subject": subject,
+            "filetype_profile": profile,
+            "filetypes": seed.filetypes,
+            "verified": verify,
+            "count": len(results),
+            "working_count": working_count,
+            "links": [
+                {
+                    "url": r.url,
+                    "title": r.title,
+                    "snippet": r.snippet,
+                    "found_by": r.strategy,
+                    "query": r.query,
+                    "provider": r.provider,
+                    "working": working_map.get(r.url, None if not verify else False),
+                }
+                for r in results
+            ],
+        }
+        file = discord.File(
+            io.BytesIO(json.dumps(payload, indent=2, ensure_ascii=False).encode("utf-8")),
+            filename=f"joseph_links_{seed.fingerprint()}.json",
         )
-        file = discord.File(io.BytesIO(full.encode("utf-8")), filename=f"joseph_dorks_{seed.fingerprint()}.txt")
 
         chunks = _chunk(body)
         await interaction.followup.send(content=chunks[0], file=file)

@@ -128,8 +128,12 @@ tests/
 ## slash commands
 
 - `/joseph help` — what joseph is and how to use it.
-- `/joseph dork` — generate a ranked query family from what you know. no network calls.
-  attaches the full plan (google / bing / ddg strings + urls) as a file.
+- `/joseph dork` — runs the dorks and returns the **direct destination links** (the actual
+  pages / files), not google search-result urls. each link is tagged with the dork that
+  found it, and with `verify:true` (default) dead links are dropped so you get working
+  links. pick a `filetype_profile` — `documents`, `leaks`, or `all` — so you don't have to
+  know extensions; the logic applies them. falls back to ready-to-run search urls only if
+  live collection is blocked. full results attach as json.
 - `/joseph investigate` — run the full pipeline and return an ASHERIN INTELLIGENCE
   AGENCY report as both markdown and json. live collection is used only when enabled.
   the report now includes a **shepherd routing / patterns applied** section (with pattern
