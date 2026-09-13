@@ -1,0 +1,27 @@
+# python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.eggs/
+build/
+dist/
+.venv/
+venv/
+env/
+
+# env + secrets
+.env
+*.env
+!.env.example
+
+# investigation outputs
+cases/
+out/
+*.report.json
+*.report.md
+
+# os / editor
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/
