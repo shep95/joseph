@@ -11,7 +11,7 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
-from joseph.engine import generator, mutation, scoring, normalize, relevance, entities, resolution, pipeline, providers
+from joseph.engine import generator, mutation, scoring, normalize, relevance, entities, resolution, pipeline, providers, combine
 from joseph.engine.grammar import TermKind
 from joseph.engine.metrics import jaro_winkler, levenshtein, levenshtein_ratio
 from joseph.engine.providers import RawResult
@@ -145,6 +145,48 @@ def test_ddg_parse_extracts_direct_result_urls():
     assert results[0].url == "https://target.com/path"
     assert results[0].title == "Target Page"
     assert results[0].strategy == "identity_direct"
+
+
+def test_parse_dork_maps_operators():
+    q = combine.parse_dork('site:example.com filetype:pdf "asher newton" -foo intext:leak')
+    kinds = {(t.kind.value, t.value) for t in q.terms}
+    assert ("site", "example.com") in kinds
+    assert ("filetype", "pdf") in kinds
+    assert ("phrase", "asher newton") in kinds
+    assert ("exclude", "foo") in kinds
+    assert ("intext", "leak") in kinds
+    g = q.render("google")
+    assert "site:example.com" in g and "filetype:pdf" in g and '"asher newton"' in g and "-foo" in g
+
+
+def test_parse_dorks_multiline():
+    qs = combine.parse_dorks('site:a.com "x"\nfiletype:sql "y"; inurl:admin')
+    assert len(qs) == 3
+    assert qs[0].render("google").startswith("site:a.com")
+
+
+def test_merge_combines_and_dedupes():
+    a = combine.parse_dork('site:a.com "asher"')
+    b = combine.parse_dork('filetype:pdf "asher"')  # duplicate phrase should fold
+    merged = combine.merge([a, b])
+    r = merged.render("google")
+    assert "site:a.com" in r and "filetype:pdf" in r
+    assert r.count('"asher"') == 1  # deduped
+    assert merged.strategy == "combined"
+
+
+def test_plan_dorks_produces_combined_queries():
+    seed = IdentitySeed.build(name="Asher Newton", domains="ashernewton.com", filetypes="pdf,sql")
+    inv = pipeline.plan_dorks(seed, combine=True)
+    strategies = {p.query.strategy for p in inv.plans}
+    assert any(s.startswith("combined") for s in strategies)
+
+
+def test_plan_dorks_runs_raw_dork():
+    seed = IdentitySeed.build(name="")
+    inv = pipeline.plan_dorks(seed, raw='site:example.com filetype:pdf "asher newton"', combine=False)
+    rendered = [p.query.render("google") for p in inv.plans]
+    assert any("site:example.com" in r and "filetype:pdf" in r for r in rendered)
 
 
 def _run_all() -> int:

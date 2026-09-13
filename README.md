@@ -134,6 +134,14 @@ tests/
   links. pick a `filetype_profile` — `documents`, `leaks`, or `all` — so you don't have to
   know extensions; the logic applies them. falls back to ready-to-run search urls only if
   live collection is blocked. full results attach as json.
+  - **combine dorks together**: paste your own dork(s) in `raw` (operators supported: `site:`
+    `filetype:`/`ext:` `intitle:` `inurl:`/`url:` `intext:`/`inbody:` `inanchor:` `before:`
+    `after:` `"phrase"` `-exclude` `OR`), one per line or separated by `;`. set
+    `combine:true` to AND-merge them into a single compound dork (e.g.
+    `site:linkedin.com "asher newton"` + `filetype:pdf intext:resume`
+    → `site:linkedin.com "asher newton" filetype:pdf intext:resume`). with `combine:true`
+    and no `raw`, joseph auto-builds compound stacked dorks from what you gave it
+    (anchor + site + filetype, anchor + context + filetype, anchor + keyword + filetype).
 - `/joseph investigate` — run the full pipeline and return an ASHERIN INTELLIGENCE
   AGENCY report as both markdown and json. live collection is used only when enabled.
   the report now includes a **shepherd routing / patterns applied** section (with pattern

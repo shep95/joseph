@@ -20,7 +20,7 @@ from discord import app_commands
 
 from .config import Config
 from .engine import providers
-from .engine.pipeline import investigate as run_investigate, plan_only
+from .engine.pipeline import investigate as run_investigate, plan_only, plan_dorks
 from .engine.seed import IdentitySeed, filetypes_for_profile
 from .report.model import build_dataset
 from .report.render import render_markdown
@@ -104,6 +104,8 @@ def register_commands(tree: app_commands.CommandTree, config: Config) -> None:
         sites="explicit site targets, name or domain (comma separated)",
         filetype_profile="which filetypes the dork logic hunts (you don't need to know extensions)",
         filetypes="OPTIONAL override: exact filetypes (comma separated). leave blank to use the profile.",
+        raw="paste your own dork(s) with operators. one per line (or separated by ';').",
+        combine="combine the dorks together into one compound AND dork (default false)",
         exclusions="terms to exclude (comma separated)",
         since="earliest date YYYY or YYYY-MM or YYYY-MM-DD",
         until="latest date YYYY or YYYY-MM or YYYY-MM-DD",
@@ -129,6 +131,8 @@ def register_commands(tree: app_commands.CommandTree, config: Config) -> None:
         sites: str = "",
         filetype_profile: app_commands.Choice[str] = None,
         filetypes: str = "",
+        raw: str = "",
+        combine: bool = False,
         exclusions: str = "",
         since: str = "",
         until: str = "",
@@ -144,14 +148,15 @@ def register_commands(tree: app_commands.CommandTree, config: Config) -> None:
             locations=locations, occupations=occupations, domains=domains, sites=sites,
             filetypes=resolved_filetypes, exclusions=exclusions, since=since, until=until,
         )
-        if seed.is_empty:
+        if seed.is_empty and not raw.strip():
             await interaction.response.send_message(
-                "give me at least one identifier -> name, username, email, or domain.", ephemeral=True
+                "give me at least one identifier -> name, username, email, or domain — or paste a `raw` dork.",
+                ephemeral=True,
             )
             return
 
         await interaction.response.defer(thinking=True)
-        inv = plan_only(seed)
+        inv = plan_dorks(seed, raw=raw, combine=combine) if (raw.strip() or combine) else plan_only(seed)
         top = max(1, min(top, 25))
         subject = seed.name or (seed.usernames[0] if seed.usernames else "subject")
 

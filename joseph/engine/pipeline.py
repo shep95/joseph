@@ -67,6 +67,45 @@ def plan_only(seed: IdentitySeed, *, mutate: bool = True, max_swaps: int = 0) ->
     return inv
 
 
+def plan_dorks(seed: IdentitySeed, *, raw: str = "", combine: bool = False, mutate: bool = True) -> Investigation:
+    """plan a query family that can include user-supplied raw dorks and AND-combined
+    compound dorks. this backs `/joseph dork` when the user wants to combine dorks."""
+    from . import combine as combine_mod
+
+    family = generator.generate(seed)
+    if mutate:
+        family = mutation.mutate_family(seed, family, max_swaps=0)
+
+    raw_queries = combine_mod.parse_dorks(raw) if raw else []
+    family = list(family) + raw_queries
+
+    if combine:
+        # combine the user's raw dorks together if they gave several; otherwise auto-build
+        # compound stacked dorks from the seed.
+        if len(raw_queries) >= 2:
+            merged = combine_mod.merge(raw_queries)
+            if merged.terms:
+                family.append(merged)
+        elif raw_queries:
+            # one raw dork + seed anchor -> fold the seed name in as a combined variant
+            base = generator.generate(seed)
+            if base:
+                family.append(combine_mod.merge([raw_queries[0], base[0]]))
+        family += combine_mod.combined_family(seed)
+
+    scored = scoring.prioritize(family)
+    plans = providers.build_plan(scored)
+    inv = Investigation(seed=seed, plans=plans)
+    if _SHEPHERD:
+        try:
+            route, applied = _shepherd_engine.select_patterns(seed)
+            inv.route = route
+            inv.applied_patterns = applied
+        except Exception:
+            pass
+    return inv
+
+
 def analyze(seed: IdentitySeed, raws: list[RawResult], investigation: Investigation) -> Investigation:
     """run the analysis stages over collected raw results."""
     results = normalize.normalize(raws)
