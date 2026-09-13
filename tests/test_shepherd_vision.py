@@ -5,6 +5,7 @@ run: python tests/test_shepherd_vision.py
 
 from __future__ import annotations
 
+import asyncio
 import struct
 import sys
 from pathlib import Path
@@ -192,6 +193,65 @@ def test_analyze_image_surfaces_real_channels():
     # identity matching + scene stay disabled by design
     assert names.get("face_recognition") == CANNOT_RESOLVE
     assert names.get("scene") == CANNOT_RESOLVE
+
+
+def test_compreface_disabled_by_default():
+    from joseph.vision import compreface
+    cfg = compreface.CompreFaceConfig(url="", recognition_key="", detection_key="")
+    assert not cfg.has_recognition and not cfg.has_detection
+    rec = asyncio.run(compreface.recognize(cfg, b"x"))
+    det = asyncio.run(compreface.detect(cfg, b"x"))
+    assert rec.status == CANNOT_RESOLVE and "COMPREFACE" in rec.reason
+    assert det.status == CANNOT_RESOLVE
+
+
+def test_compreface_recognize_parses_response(monkeypatch=None):
+    from joseph.vision import compreface
+
+    async def fake_post(endpoint, api_key, data, params, timeout):
+        return 200, {
+            "result": [
+                {
+                    "box": {"x_min": 1, "y_min": 2, "x_max": 3, "y_max": 4, "probability": 0.99},
+                    "subjects": [
+                        {"subject": "asher", "similarity": 0.978},
+                        {"subject": "other", "similarity": 0.41},
+                    ],
+                    "age": {"low": 25, "high": 32},
+                    "gender": {"value": "male", "probability": 0.98},
+                }
+            ]
+        }, ""
+
+    compreface._post_image = fake_post  # swap the network call
+    cfg = compreface.CompreFaceConfig(url="http://x:8000", recognition_key="k")
+    res = asyncio.run(compreface.recognize(cfg, b"img"))
+    assert res.status == "resolved"
+    assert res.observations["faces"][0]["top_subject"] == "asher"
+    assert res.observations["faces"][0]["top_similarity"] == 0.978
+    assert "not proof" in res.observations["note"]
+
+
+def test_enrich_swaps_face_recognition_channel():
+    from joseph.vision import compreface
+    from joseph.vision.engine import analyze_image, enrich_with_compreface
+
+    async def fake_post(endpoint, api_key, data, params, timeout):
+        if "detection" in endpoint:
+            return 200, {"result": [{"box": {}, "age": {"low": 20, "high": 30}, "landmarks": [[1, 2]] * 5}]}, ""
+        return 200, {"result": [{"box": {}, "subjects": [{"subject": "z", "similarity": 0.9}]}]}, ""
+
+    compreface._post_image = fake_post
+    if not imaging.available():
+        print("    (skip: pillow/numpy not installed)")
+        return
+    data = _png_bytes(200, 200)
+    ev = analyze_image(data)
+    cfg = compreface.CompreFaceConfig(url="http://x:8000", recognition_key="k", detection_key="d")
+    ev = asyncio.run(enrich_with_compreface(data, ev, cfg))
+    by = {c.channel: c for c in ev.channels}
+    assert by["face_recognition"].status == "resolved"
+    assert by["compreface_detect"].status in ("resolved", "partial")
 
 
 def _run_all() -> int:

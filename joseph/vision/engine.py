@@ -59,3 +59,26 @@ def analyze_image(data: bytes, channels: tuple[EvidenceChannel, ...] = DEFAULT_C
     if disabled:
         ev.notes.append("disabled/absent channels: " + ", ".join(disabled))
     return ev
+
+
+async def enrich_with_compreface(data: bytes, ev: "VisualEvidence", cfg) -> "VisualEvidence":
+    """replace the disabled face_recognition placeholder with a real result from the
+    operator's own compreface instance, and append the compreface detection channel.
+    called only when compreface env is configured -> default behavior is unchanged.
+    """
+    from . import compreface
+
+    rec = await compreface.recognize(cfg, data)
+    det = await compreface.detect(cfg, data)
+
+    # swap the placeholder face_recognition channel for the live result
+    replaced = False
+    for i, c in enumerate(ev.channels):
+        if c.channel == "face_recognition":
+            ev.channels[i] = rec
+            replaced = True
+            break
+    if not replaced:
+        ev.channels.append(rec)
+    ev.channels.append(det)
+    return ev

@@ -26,7 +26,8 @@ from .report.model import build_dataset
 from .report.render import render_markdown
 from .shepherd.pattern_engine import select_patterns
 from .shepherd.router import domain_names
-from .vision.engine import analyze_image
+from .vision.engine import analyze_image, enrich_with_compreface
+from .vision.compreface import CompreFaceConfig
 
 INTRO = (
     "joseph is a deterministic (non-ai) osint query synthesis and evidence correlation "
@@ -370,6 +371,19 @@ def register_commands(tree: app_commands.CommandTree, config: Config) -> None:
             return
         ev = analyze_image(data)
 
+        # if the operator has wired their own compreface instance, run recognition +
+        # detection against THEIR collection (env-gated; default stays disabled)
+        if config.has_compreface_recognition or config.has_compreface_detection:
+            cf = CompreFaceConfig(
+                url=config.compreface_url,
+                recognition_key=config.compreface_recognition_key,
+                detection_key=config.compreface_detection_key,
+                timeout=config.http_timeout,
+                det_prob_threshold=config.compreface_det_prob_threshold,
+                prediction_count=config.compreface_prediction_count,
+            )
+            ev = await enrich_with_compreface(data, ev, cf)
+
         embed = discord.Embed(title="joseph -> visual osint evidence", color=0x0B7285)
         for c in ev.channels:
             summary = c.status
@@ -386,6 +400,17 @@ def register_commands(tree: app_commands.CommandTree, config: Config) -> None:
                 summary = f"phash `{o.get('phash')}` · dhash `{o.get('dhash')}` (compare with hamming distance)"
             elif c.channel == "face_detection" and c.status in ("resolved", "partial"):
                 summary = f"{o.get('count', 0)} face(s) detected · sharpness {o.get('image_sharpness')} (measurement only, no identity)"
+            elif c.channel == "face_recognition" and c.status in ("resolved", "partial"):
+                faces = o.get("faces", [])
+                if faces and faces[0].get("top_subject"):
+                    cand = ", ".join(
+                        f"{f.get('top_subject')} ({f.get('top_similarity')})" for f in faces if f.get("top_subject")
+                    )
+                    summary = f"candidate(s): {cand} — a lead vs YOUR collection, not proof"
+                else:
+                    summary = "face found, no match in your collection"
+            elif c.channel == "compreface_detect" and c.status in ("resolved", "partial"):
+                summary = f"{o.get('count', 0)} face(s) · landmarks/age/gender/mask/pose measured (no identity)"
             elif c.reason:
                 summary = f"{c.status} -> {c.reason}"
             embed.add_field(name=c.channel, value=summary[:1000], inline=False)

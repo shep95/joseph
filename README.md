@@ -70,11 +70,31 @@ vision channels, and the one line between measurement and surveillance:
 | `exif_geo`         | enabled  | exif + gps when the file carries it (real location evidence) |
 | `phash`            | enabled  | perceptual hashes for near-duplicate / image-reuse detection |
 | `face_detection`   | enabled  | face presence / count / size / sharpness — **measurement, never identity** |
-| `face_recognition` | disabled | identity matching against a corpus = biometric surveillance; not shipped |
+| `face_recognition` | opt-in   | disabled unless you wire your own self-hosted CompreFace (matches only against YOUR enrolled collection) |
+| `compreface_detect`| opt-in   | landmarks / age / gender / mask / pose from your CompreFace detection service |
 | `scene`            | disabled | landmark/satellite geolocation needs an authorized imagery corpus; not shipped |
 
-everything enabled is deterministic and non-ai (fixed resampling, classical CV, pure
-arithmetic). visual similarity is a *lead*, not proof of identity.
+everything enabled by default is deterministic and non-ai (fixed resampling, classical CV,
+pure arithmetic). visual similarity is a *lead*, not proof of identity.
+
+### optional: face recognition via self-hosted CompreFace
+
+the `face_recognition` and `compreface_detect` channels light up only when you point joseph
+at your **own** [exadel CompreFace](https://github.com/exadel-inc/CompreFace) instance
+(apache-2.0). recognition runs against the collection **you** enrolled — the faces you are
+authorized to compare against — not the open web. joseph never ships or hosts a face model.
+
+1. self-host CompreFace (docker compose) on a box you control; create a "Face recognition"
+   service and (optionally) a "Face detection" service, and copy their api keys.
+2. enroll subjects you are authorized to match (`POST /api/v1/recognition/faces?subject=...`).
+3. set these env vars for joseph (railway service variables or `.env`):
+   - `COMPREFACE_URL` (e.g. `http://your-host:8000`)
+   - `COMPREFACE_RECOGNITION_KEY`
+   - `COMPREFACE_DETECTION_KEY` (optional, for the detection passthrough)
+4. `/joseph vision` now returns candidate subject(s) + similarity **from your collection** as
+   evidence (still a lead, not proof), plus landmark/age/gender/mask/pose measurements.
+
+with no CompreFace env set, both channels stay `CANNOT_RESOLVE` and nothing changes.
 
 the pipeline itself:
 
