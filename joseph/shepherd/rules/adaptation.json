@@ -1,0 +1,14 @@
+{
+  "_note": "adaptation rules for the pattern creator (compiler). feedback is data: trace an outcome to the pattern that produced it, classify, then create/adapt/quarantine.",
+  "lifecycle": ["discover", "create", "evaluate", "retain", "retrieve", "compose", "adapt", "evolve"],
+  "scopes": ["ephemeral", "task", "conversation", "project", "user", "domain", "system"],
+  "on_failure": {
+    "record": ["pattern_id", "version", "context", "failure_class", "root_cause", "repair"],
+    "then": ["create_new_version", "historical_replay", "validate", "promote_or_quarantine"]
+  },
+  "on_success": {
+    "record": ["pattern_id", "version", "context", "evidence", "confidence"],
+    "then": ["increment_usage", "raise_confidence_bounded"]
+  },
+  "never": ["overwrite_prior_version", "claim_model_weight_modification", "auto_promote_untested_pattern"]
+}

@@ -1,0 +1,11 @@
+{
+  "_note": "validation gates for the pattern creator lifecycle. a candidate pattern must clear these before promotion.",
+  "lifecycle_states": ["candidate", "experimental", "validated", "active", "deprecated", "quarantined", "rejected"],
+  "promotion_rules": {
+    "candidate_to_experimental": ["has_id", "has_trigger", "has_operations"],
+    "experimental_to_validated": ["passed_historical_replay", "no_contradiction_with_active", "confidence >= 0.6"],
+    "validated_to_active": ["human_or_registry_approval", "scope_assigned"]
+  },
+  "quarantine_on": ["evidence_untrusted", "not_reproducible", "conflicts_with_active_pattern", "introduces_security_risk"],
+  "epistemic_firewall": ["observation", "interpretation", "hypothesis", "inference", "estimate", "fact", "assumption", "unknown"]
+}

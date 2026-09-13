@@ -1,0 +1,27 @@
+{
+  "_note": "the universal pattern object, reduced to an executable primitive. a pattern file must supply at least id, domain, trigger, operations. the registry validates against this.",
+  "required": ["id", "domain", "trigger", "operations"],
+  "fields": {
+    "id": "string -> namespaced identifier, e.g. identity.cross_source_confirmation",
+    "version": "integer -> pattern version (registry may hold multiple)",
+    "status": "string -> candidate | experimental | validated | active | deprecated | quarantined | rejected",
+    "parent": "string|null -> id@version this evolved from",
+    "domain": "array -> pattern-forge domain codes (KNO, NET, SEC, ...)",
+    "context": "string -> when this applies",
+    "trigger": "string -> the condition that fires the pattern",
+    "preconditions": "array -> facts that must hold before operations run",
+    "operations": "array -> ordered deterministic actions the runtime performs",
+    "invariants": "array -> must remain true throughout",
+    "constraints": "array -> boundaries on execution",
+    "failure_modes": "array -> named ways this pattern fails",
+    "repair_patterns": "array -> pattern ids that repair the failure modes",
+    "tests": "array -> named checks that validate the pattern",
+    "falsifiers": "array -> observations that would disprove the pattern",
+    "success_conditions": "array -> what counts as success",
+    "stopping_conditions": "array -> when to stop iterating",
+    "relations": "object -> relation-name -> [target ids/concepts] from the relation algebra",
+    "evidence": "array -> supporting cases",
+    "confidence": "number -> 0..1 registry confidence in the pattern",
+    "scope": "string -> ephemeral | task | conversation | project | user | domain | system"
+  }
+}

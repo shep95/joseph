@@ -86,6 +86,36 @@ def render_markdown(ds: ReportDataset) -> str:
         a("no entities extracted -> plan-only mode or empty result set.")
     a("")
 
+    # shepherd routing + patterns applied
+    a("---")
+    a("### shepherd -> routing and patterns applied")
+    a("")
+    routing = ds.routing or {}
+    if routing:
+        a(f"- task type: **{routing.get('task_type', '?')}**")
+        a(f"- domains: {', '.join(routing.get('domains', []))}")
+        a(f"- features: {', '.join(routing.get('features', []))}")
+    if ds.patterns_applied:
+        a("- patterns applied:")
+        for p in ds.patterns_applied:
+            state = "satisfied" if p.get("satisfied") else "queued (runtime precondition)"
+            a(f"    - `{p['id']}@{p['version']}` [{p['status']}] {state} · conf {p['confidence']:.2f}")
+            if p.get("strategies"):
+                a(f"        strategies: {', '.join(p['strategies'])}")
+    else:
+        a("- no patterns applied (shepherd not loaded or no route matched)")
+    a("")
+
+    # model audit
+    a("### model audit")
+    a("")
+    if ds.audit:
+        for af in ds.audit:
+            a(f"- [{af['severity']}] ({af['flaw_class']}) {af['detail']}")
+    else:
+        a("no audit flags raised.")
+    a("")
+
     # evidence graph
     a("---")
     a("### evidence graph")

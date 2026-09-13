@@ -1,0 +1,26 @@
+{
+  "id": "temporal.disambiguation",
+  "version": 1,
+  "status": "active",
+  "domain": ["TEMP", "SCI"],
+  "context": "conflicting claims may be true in different time intervals rather than contradictory",
+  "trigger": "conflicting_claims_detected",
+  "preconditions": ["two_claims_share_subject", "claims_have_timestamps_or_intervals"],
+  "operations": ["extract_intervals", "order_by_time", "test_interval_overlap", "assign_validity_windows"],
+  "invariants": ["never_pick_newest_by_default"],
+  "constraints": ["dates must be sourced"],
+  "failure_modes": ["missing_timestamps", "spoofed_timestamps", "timezone_ambiguity"],
+  "repair_patterns": ["evidence.metadata_integrity"],
+  "tests": ["interval_consistency_test"],
+  "falsifiers": ["overlapping_intervals_with_mutual_exclusion"],
+  "success_conditions": ["claims_resolved_to_disjoint_intervals"],
+  "stopping_conditions": ["no_temporal_conflict_remaining"],
+  "relations": {
+    "REQUIRES": ["evidence.timestamps"],
+    "DETECTS": ["temporal_resolution"],
+    "REPAIRS": ["contradiction.employment_conflict"],
+    "FAILS_UNDER": ["missing_timestamps"]
+  },
+  "confidence": 0.72,
+  "scope": "domain"
+}

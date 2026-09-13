@@ -1,0 +1,29 @@
+{
+  "id": "identity.confirmation",
+  "version": 1,
+  "status": "active",
+  "parent": null,
+  "domain": ["KNO", "SCI", "MEA"],
+  "context": "multiple candidate identities may match the seed",
+  "trigger": "candidate_identity_exists",
+  "preconditions": ["candidate_has_identifier"],
+  "operations": ["retrieve_source", "extract_identifier", "compare_identifier", "score_consistency"],
+  "invariants": ["source_provenance_required"],
+  "constraints": ["public sources only", "no auth bypass"],
+  "failure_modes": ["source_collision", "duplicate_source", "unsupported_identity_link"],
+  "repair_patterns": ["identity.independence_at_provenance"],
+  "tests": ["independent_source_test"],
+  "falsifiers": ["contradictory_location", "impossible_chronology", "incompatible_organization"],
+  "success_conditions": ["independent_support >= 2"],
+  "stopping_conditions": ["independent_support >= 3", "no_new_identifiers"],
+  "relations": {
+    "REQUIRES": ["evidence.independent_support"],
+    "DETECTS": ["identity_link"],
+    "CONTRADICTS": ["identity.false_match"],
+    "COMPOSED_WITH": ["temporal.disambiguation"],
+    "TESTED_BY": ["cross_source.validation"],
+    "FAILS_UNDER": ["source.collision"]
+  },
+  "confidence": 0.8,
+  "scope": "domain"
+}

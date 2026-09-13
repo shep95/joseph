@@ -43,6 +43,9 @@ class ReportDataset:
     contradictions: list[str]
     unresolved: list[str]
     methodology: dict
+    routing: dict = None
+    patterns_applied: list = None
+    audit: list = None
     data_hash: str = ""
 
     def to_json(self) -> str:
@@ -145,6 +148,32 @@ def build_dataset(inv: Investigation, *, top_queries: int = 25, top_sources: int
             }
         )
 
+    # shepherd routing + patterns applied + audit
+    routing = {}
+    patterns_applied = []
+    audit = []
+    if getattr(inv, "route", None) is not None:
+        r = inv.route
+        routing = {
+            "task_type": r.task_type,
+            "domains": list(r.domains),
+            "features": list(r.features),
+        }
+    for ap in getattr(inv, "applied_patterns", []) or []:
+        patterns_applied.append(
+            {
+                "id": ap.pattern.id,
+                "version": ap.pattern.version,
+                "status": ap.pattern.status,
+                "satisfied": ap.satisfied,
+                "operations": list(ap.operations),
+                "strategies": list(ap.strategies),
+                "confidence": ap.pattern.confidence,
+            }
+        )
+    for af in getattr(inv, "audit_findings", []) or []:
+        audit.append({"flaw_class": af.flaw_class, "detail": af.detail, "severity": af.severity})
+
     if inv.graph is not None:
         g = inv.graph
         graph_summary = {
@@ -177,14 +206,18 @@ def build_dataset(inv: Investigation, *, top_queries: int = 25, top_sources: int
         methodology={
             "engine": "joseph",
             "mode": "live-collection" if inv.live_executed else "plan-only",
+            "control_plane": "shepherd (symbolic pattern execution)",
             "stages": [
-                "seed", "generate", "mutate", "prioritize", "plan",
+                "seed", "route", "select_patterns", "generate", "mutate", "prioritize", "plan",
                 "collect", "normalize", "relevance", "extract",
-                "resolve", "graph", "findings",
+                "resolve", "graph", "findings", "audit",
             ],
             "boundary": "public sources and documented search operators only; no auth bypass, no private-account access, no restricted records",
             "non_ai": True,
         },
+        routing=routing,
+        patterns_applied=patterns_applied,
+        audit=audit,
     )
     # finalize hash
     dataset.to_json()

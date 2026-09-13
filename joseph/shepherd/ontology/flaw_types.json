@@ -1,0 +1,32 @@
+{
+  "_note": "universal model-audit flaw taxonomy (25 classes). the audit engine checks a subset relevant to osint; the rest are declared extension points.",
+  "flaw_classes": {
+    "1_intent": ["misunderstood goal", "missing objective", "conflicting objectives", "wrong interpretation"],
+    "2_requirement": ["missing requirement", "contradictory requirement", "unnecessary requirement", "unstated requirement"],
+    "3_logic": ["contradiction", "invalid inference", "circular reasoning", "impossible condition", "missing condition", "faulty rule"],
+    "4_causal": ["correlation treated as causation", "wrong cause", "missing mediator", "hidden confounder", "feedback overlooked", "incorrect mechanism"],
+    "5_state": ["missing state", "invalid transition", "unreachable state", "impossible state", "stale state", "state sync failure"],
+    "6_flow": ["broken sequence", "dead end", "bottleneck", "deadlock", "race", "starvation", "hidden dependency"],
+    "7_data": ["missing data", "corrupted data", "duplicated data", "stale data", "schema mismatch", "leakage", "provenance failure"],
+    "8_information": ["signal lost", "noise mistaken for signal", "ambiguity", "information bottleneck", "context loss", "transmission distortion"],
+    "9_assumption": ["hidden assumption", "unsupported assumption", "outdated assumption", "violated assumption", "assumption that changes outcome"],
+    "10_evidence": ["insufficient evidence", "weak evidence", "conflicting evidence", "source reliability problem", "selection bias", "evidence to conclusion gap"],
+    "11_uncertainty": ["false certainty", "unknown treated as known", "confidence mismatch", "missing probability", "uncertainty propagation failure"],
+    "12_temporal": ["wrong ordering", "timing failure", "delay", "premature action", "missed transition", "changing conditions ignored"],
+    "13_spatial": ["wrong position", "boundary failure", "scale mismatch", "proximity assumption", "spatial relationship failure"],
+    "14_resource": ["insufficient resources", "resource conflict", "waste", "allocation failure", "capacity exceeded", "dependency unavailable"],
+    "15_performance": ["latency", "throughput limitation", "memory pressure", "computational cost", "scaling failure", "efficiency degradation"],
+    "16_robustness": ["fragile assumption", "single point of failure", "sensitivity to small changes", "adversarial failure", "environmental instability"],
+    "17_human_factor": ["cognitive overload", "ambiguity", "confusing interaction", "mode confusion", "automation bias", "accessibility failure"],
+    "18_communication": ["wrong tone", "wrong level of detail", "missing context", "misunderstood intent", "poor information ordering", "unnecessary complexity"],
+    "19_creative": ["violates requested constraints", "wrong visual hierarchy", "functional mismatch", "composition failure", "repetitive solution", "concept does not express intent"],
+    "20_interaction": ["wrong response to user action", "missing feedback", "broken navigation", "unclear affordance", "unexpected state change", "poor recovery path"],
+    "21_strategic": ["incentive mismatch", "second order consequence ignored", "opponent response ignored", "tradeoff ignored", "local optimum mistaken for global optimum"],
+    "22_security": ["unauthorized access", "trust boundary failure", "privacy exposure", "integrity failure", "availability failure", "unsafe dependency"],
+    "23_ethical_governance": ["consent failure", "disproportionate harm", "accountability gap", "unfair outcome", "governance conflict"],
+    "24_transfer": ["analogy applied too literally", "mechanism mismatch", "scale mismatch", "environment mismatch", "constraint mismatch"],
+    "25_meta": ["wrong model", "wrong reasoning strategy", "premature conclusion", "insufficient exploration", "excessive exploration", "wrong pattern retrieved", "pattern overgeneralization", "pattern undergeneralization", "failure to learn from previous outcome"],
+    "26_metadata": ["missing metadata", "incorrect metadata", "stale metadata", "contradictory metadata", "spoofed metadata", "tampered metadata", "unverifiable provenance", "broken lineage", "timestamp inconsistency", "identity mismatch", "metadata leakage", "missing audit event"]
+  },
+  "osint_active": ["10_evidence", "11_uncertainty", "12_temporal", "7_data", "9_assumption", "25_meta", "26_metadata"]
+}

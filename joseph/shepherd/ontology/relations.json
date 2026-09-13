@@ -1,0 +1,22 @@
+{
+  "_note": "pattern-forge relation algebra. edges in the pattern knowledge graph carry one of these relations. the engine executes a known relation rather than interpreting meaning.",
+  "relations": [
+    "IS_A", "PART_OF", "CONTAINS", "COMPOSED_OF", "REQUIRES", "ENABLES", "INHIBITS",
+    "AMPLIFIES", "REDUCES", "CAUSES", "CONTRIBUTES_TO", "CORRELATES_WITH", "TRIGGERS",
+    "PRECEDES", "FOLLOWS", "FEEDS_BACK_TO", "REGULATES", "COMPETES_WITH", "COOPERATES_WITH",
+    "COMPLEMENTS", "CONTRADICTS", "ALTERNATIVE_TO", "SPECIAL_CASE_OF", "GENERALIZES",
+    "ABSTRACTS", "INSTANTIATES", "ANALOGOUS_TO", "TRANSFERS_TO", "SCALES_TO", "EMERGES_FROM",
+    "DETECTS", "FAILS_UNDER", "REPAIRS", "TESTS", "FALSIFIES", "REFINES", "SUPERSEDES",
+    "BELONGS_TO", "COMPOSED_WITH", "TESTED_BY"
+  ],
+  "inverse": {
+    "REQUIRES": "REQUIRED_BY",
+    "CAUSES": "CAUSED_BY",
+    "PRECEDES": "FOLLOWS",
+    "GENERALIZES": "SPECIAL_CASE_OF",
+    "DETECTS": "DETECTED_BY",
+    "TESTS": "TESTED_BY",
+    "REPAIRS": "REPAIRED_BY",
+    "SUPERSEDES": "SUPERSEDED_BY"
+  }
+}

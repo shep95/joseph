@@ -1,0 +1,65 @@
+{
+  "_note": "pattern-forge lettered domains used by the deterministic router. keywords route a task to domains; domains index patterns. this is routing knowledge, not an ai deciding meaning.",
+  "domains": {
+    "KNO": {
+      "name": "knowledge / retrieval",
+      "concepts": ["facts", "relations", "schemas", "ontologies", "indexing", "search", "retrieval", "ranking", "relevance", "provenance", "citation", "source quality", "conflict", "revision"],
+      "keywords": ["search", "retrieval", "source", "provenance", "citation", "index", "rank", "relevance", "osint", "dork", "query"]
+    },
+    "NET": {
+      "name": "network intelligence",
+      "concepts": ["nodes", "edges", "hubs", "bridges", "paths", "clusters", "communities", "centrality", "diffusion", "routing"],
+      "keywords": ["graph", "network", "centrality", "cluster", "community", "connection", "relationship", "link"]
+    },
+    "DAT": {
+      "name": "data intelligence",
+      "concepts": ["schemas", "records", "keys", "indexes", "normalization", "lineage", "quality", "deduplication", "aggregation"],
+      "keywords": ["data", "record", "dedupe", "normalize", "lineage", "schema", "aggregate"]
+    },
+    "INF": {
+      "name": "information / signal intelligence",
+      "concepts": ["signal", "noise", "entropy", "redundancy", "encoding", "filtering", "distortion", "error correction"],
+      "keywords": ["signal", "noise", "entropy", "filter", "encode", "decode"]
+    },
+    "SCI": {
+      "name": "scientific / epistemic intelligence",
+      "concepts": ["observation", "hypothesis", "prediction", "experiment", "falsification", "evidence accumulation", "uncertainty"],
+      "keywords": ["hypothesis", "evidence", "falsify", "verify", "uncertainty", "confidence", "epistemic"]
+    },
+    "SEC": {
+      "name": "security / privacy / trust",
+      "concepts": ["identity", "authentication", "authorization", "least privilege", "trust boundaries", "audit", "privacy", "data minimization", "retention"],
+      "keywords": ["security", "privacy", "authorization", "trust", "audit", "consent", "retention", "identity"]
+    },
+    "MEA": {
+      "name": "measurement / statistical intelligence",
+      "concepts": ["precision", "accuracy", "error", "bias", "variance", "estimation", "confidence", "calibration", "selection bias"],
+      "keywords": ["measure", "precision", "recall", "bias", "estimate", "calibrate", "score"]
+    },
+    "GEO": {
+      "name": "geometric / spatial intelligence",
+      "concepts": ["point", "distance", "orientation", "intersection", "symmetry", "topology", "adjacency", "projection", "region"],
+      "keywords": ["location", "geo", "spatial", "coordinate", "map", "terrain", "distance", "region", "gps"]
+    },
+    "LAW": {
+      "name": "rule / policy / governance logic",
+      "concepts": ["rules", "exceptions", "jurisdiction", "authority", "permission", "prohibition", "obligation", "precedent", "enforcement"],
+      "keywords": ["law", "record", "court", "jurisdiction", "policy", "record", "public record"]
+    },
+    "V": {
+      "name": "visual perception",
+      "concepts": ["figure-ground", "grouping", "depth", "object recognition", "visual search", "configuration"],
+      "keywords": ["image", "photo", "vision", "visual", "face", "scene", "picture", "video"]
+    },
+    "M": {
+      "name": "morphology / form intelligence",
+      "concepts": ["silhouette", "proportion", "surface", "segmentation", "building morphology", "cross-form comparison"],
+      "keywords": ["morphology", "shape", "form", "building", "landmark"]
+    },
+    "TEMP": {
+      "name": "temporal reasoning",
+      "concepts": ["ordering", "timing", "interval", "chronology", "changepoint", "before", "after", "sequence"],
+      "keywords": ["time", "temporal", "chronology", "before", "after", "date", "timeline", "interval"]
+    }
+  }
+}

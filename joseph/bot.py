@@ -22,6 +22,9 @@ from .engine.pipeline import investigate as run_investigate, plan_only
 from .engine.seed import IdentitySeed
 from .report.model import build_dataset
 from .report.render import render_markdown
+from .shepherd.pattern_engine import select_patterns
+from .shepherd.router import domain_names
+from .vision.engine import analyze_image
 
 INTRO = (
     "joseph is a deterministic (non-ai) osint query synthesis and evidence correlation "
@@ -230,6 +233,131 @@ def register_commands(tree: app_commands.CommandTree, config: Config) -> None:
         json_file = discord.File(io.BytesIO(json_text.encode("utf-8")), filename=f"{a.report_id}.json")
 
         await interaction.followup.send(embed=embed, files=[md_file, json_file])
+
+    @joseph.command(name="route", description="show how shepherd routes a subject -> task type, domains, patterns")
+    @app_commands.describe(
+        name="full name", usernames="usernames", emails="emails",
+        domains="domains", organizations="organizations",
+    )
+    async def route_cmd(
+        interaction: discord.Interaction,
+        name: str = "",
+        usernames: str = "",
+        emails: str = "",
+        domains: str = "",
+        organizations: str = "",
+    ) -> None:
+        seed = _seed_from_options(
+            name=name, usernames=usernames, emails=emails, domains=domains, organizations=organizations
+        )
+        if seed.is_empty:
+            await interaction.response.send_message(
+                "give me at least one identifier so shepherd can classify the task.", ephemeral=True
+            )
+            return
+        r, applied = select_patterns(seed)
+        embed = discord.Embed(
+            title="shepherd -> routing",
+            description=f"task type: **{r.task_type}**",
+            color=0x5F3DC4,
+        )
+        embed.add_field(name="domains", value="\n".join(domain_names(r.domains)) or "-", inline=False)
+        embed.add_field(
+            name="patterns applied",
+            value="\n".join(
+                f"`{p.pattern.id}@{p.pattern.version}` [{p.pattern.status}] "
+                f"{'ok' if p.satisfied else 'queued'}"
+                for p in applied
+            ) or "none",
+            inline=False,
+        )
+        embed.set_footer(text="deterministic table-driven routing · no ai")
+        await interaction.response.send_message(embed=embed, ephemeral=True)
+
+    @joseph.command(name="vision", description="visual/geo osint on an image (exif+gps + provenance; no biometric surveillance)")
+    @app_commands.describe(image="an image to analyze (exif gps, provenance)")
+    async def vision_cmd(interaction: discord.Interaction, image: discord.Attachment) -> None:
+        await interaction.response.defer(thinking=True)
+        try:
+            data = await image.read()
+        except Exception:
+            await interaction.followup.send("could not read the attachment.")
+            return
+        ev = analyze_image(data)
+
+        embed = discord.Embed(title="joseph -> visual osint evidence", color=0x0B7285)
+        for c in ev.channels:
+            summary = c.status
+            if c.channel == "exif_geo" and c.status == "resolved" and "gps" in c.observations:
+                g = c.observations["gps"]
+                summary = f"gps {g['lat']}, {g['lon']}"
+            elif c.reason:
+                summary = f"{c.status} -> {c.reason}"
+            embed.add_field(name=c.channel, value=summary[:1000], inline=False)
+        if ev.location_hypothesis:
+            lh = ev.location_hypothesis
+            embed.add_field(
+                name="location hypothesis",
+                value=f"{lh['lat']}, {lh['lon']} ({lh['source']})\n{lh['caveat']}",
+                inline=False,
+            )
+        embed.set_footer(text="visual similarity is a lead, not proof of identity · biometric channels disabled")
+
+        import json as _json
+        payload = _json.dumps(ev.to_dict(), indent=2, ensure_ascii=False)
+        vfile = discord.File(io.BytesIO(payload.encode("utf-8")), filename="joseph_vision.json")
+        await interaction.followup.send(embed=embed, file=vfile)
+
+    @joseph.command(name="workspace", description="create a private research workspace (category + channels) for you")
+    @app_commands.describe(
+        name="a name for your case / workspace",
+        private="only you and admins can see it (default true)",
+    )
+    async def workspace_cmd(interaction: discord.Interaction, name: str, private: bool = True) -> None:
+        guild = interaction.guild
+        if guild is None:
+            await interaction.response.send_message("run this in a server, not a dm.", ephemeral=True)
+            return
+        me = guild.me
+        if me is None or not me.guild_permissions.manage_channels:
+            await interaction.response.send_message(
+                "i need the **Manage Channels** permission to create a workspace. ask an admin to grant it.",
+                ephemeral=True,
+            )
+            return
+
+        await interaction.response.defer(thinking=True, ephemeral=True)
+        safe = name.strip()[:90] or "case"
+        category_name = f"joseph · {safe}"
+
+        overwrites = None
+        if private:
+            overwrites = {
+                guild.default_role: discord.PermissionOverwrite(view_channel=False),
+                interaction.user: discord.PermissionOverwrite(view_channel=True, send_messages=True),
+                me: discord.PermissionOverwrite(view_channel=True, send_messages=True, manage_channels=True),
+            }
+        try:
+            category = await guild.create_category(category_name, overwrites=overwrites, reason=f"joseph workspace for {interaction.user}")
+            created = []
+            for chan in ("case-file", "queries", "findings", "sources", "media"):
+                ch = await category.create_text_channel(chan, reason="joseph workspace channel")
+                created.append(ch.mention)
+        except discord.Forbidden:
+            await interaction.followup.send(
+                "discord refused the operation -> check my role is high enough and has Manage Channels.",
+                ephemeral=True,
+            )
+            return
+        except discord.HTTPException as exc:
+            await interaction.followup.send(f"discord error creating the workspace: {exc}", ephemeral=True)
+            return
+
+        visibility = "private (only you + admins)" if private else "public"
+        await interaction.followup.send(
+            f"created **{category_name}** ({visibility}) with channels: {', '.join(created)}",
+            ephemeral=True,
+        )
 
     tree.add_command(joseph)
 

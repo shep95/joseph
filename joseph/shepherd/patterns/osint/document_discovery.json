@@ -1,0 +1,26 @@
+{
+  "id": "research.document_discovery",
+  "version": 1,
+  "status": "active",
+  "domain": ["KNO", "DAT"],
+  "context": "authored or referencing documents carry authorship and organizational metadata",
+  "trigger": "subject_named",
+  "preconditions": ["seed_has_name"],
+  "operations": ["query_name_filetype", "query_org_document", "extract_document_metadata", "queue_authors_and_domains"],
+  "invariants": ["record_document_provenance"],
+  "constraints": ["documented filetype operators only"],
+  "failure_modes": ["name_collision_in_document", "stale_document", "unrelated_author"],
+  "repair_patterns": ["identity.confirmation", "temporal.disambiguation"],
+  "tests": ["author_metadata_consistency_test"],
+  "falsifiers": ["author_field_names_different_person"],
+  "success_conditions": ["document_with_matching_author_or_org"],
+  "stopping_conditions": ["no_new_documents"],
+  "relations": {
+    "REQUIRES": ["seed.name"],
+    "DETECTS": ["document"],
+    "COMPOSED_WITH": ["identity.confirmation"],
+    "FAILS_UNDER": ["name_collision"]
+  },
+  "confidence": 0.7,
+  "scope": "domain"
+}

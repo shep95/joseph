@@ -1,0 +1,26 @@
+{
+  "id": "audit.contradiction_check",
+  "version": 1,
+  "status": "active",
+  "domain": ["SCI", "MEA", "SEC"],
+  "context": "confirmation bias -> the engine must actively search for disconfirming evidence",
+  "trigger": "hypothesis_formed",
+  "preconditions": ["at_least_one_supported_finding"],
+  "operations": ["generate_contradiction_queries", "test_source_independence", "detect_competing_candidates", "downgrade_on_conflict"],
+  "invariants": ["support_and_attack_weighted_together"],
+  "constraints": ["do not treat name-only match as confirmation"],
+  "failure_modes": ["single_source_masquerading_as_many", "confirmation_only_search"],
+  "repair_patterns": ["identity.independence_at_provenance"],
+  "tests": ["independence_at_provenance_test"],
+  "falsifiers": ["independent_source_disconfirms_claim"],
+  "success_conditions": ["contradictions_enumerated_and_scored"],
+  "stopping_conditions": ["no_unresolved_contradiction"],
+  "relations": {
+    "REQUIRES": ["findings.supported"],
+    "DETECTS": ["contradiction"],
+    "COMPLEMENTS": ["identity.confirmation"],
+    "FAILS_UNDER": ["source_collision"]
+  },
+  "confidence": 0.78,
+  "scope": "domain"
+}

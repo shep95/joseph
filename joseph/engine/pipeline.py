@@ -17,6 +17,15 @@ from . import generator, mutation, scoring, providers, normalize, relevance, ent
 from .providers import QueryPlan, RawResult
 from .seed import IdentitySeed
 
+# shepherd symbolic control plane -> decides which patterns apply and audits the result
+try:
+    from ..shepherd import pattern_engine as _shepherd_engine
+    from ..shepherd import audit as _shepherd_audit
+    from ..shepherd.router import Route as _Route
+    _SHEPHERD = True
+except Exception:  # shepherd is optional; the engine still runs without it
+    _SHEPHERD = False
+
 
 @dataclass
 class Investigation:
@@ -29,6 +38,9 @@ class Investigation:
     graph: graph.EvidenceGraph | None = None
     assessment: evidence.Assessment | None = None
     live_executed: bool = False
+    route: object | None = None            # shepherd Route
+    applied_patterns: list = field(default_factory=list)  # shepherd AppliedPattern
+    audit_findings: list = field(default_factory=list)     # shepherd AuditFinding
 
     @property
     def query_count(self) -> int:
@@ -42,7 +54,17 @@ def plan_only(seed: IdentitySeed, *, mutate: bool = True, max_swaps: int = 0) ->
         family = mutation.mutate_family(seed, family, max_swaps=max_swaps)
     scored = scoring.prioritize(family)
     plans = providers.build_plan(scored)
-    return Investigation(seed=seed, plans=plans)
+    inv = Investigation(seed=seed, plans=plans)
+
+    # shepherd decides the task route + which patterns apply
+    if _SHEPHERD:
+        try:
+            route, applied = _shepherd_engine.select_patterns(seed)
+            inv.route = route
+            inv.applied_patterns = applied
+        except Exception:
+            pass
+    return inv
 
 
 def analyze(seed: IdentitySeed, raws: list[RawResult], investigation: Investigation) -> Investigation:
@@ -60,6 +82,13 @@ def analyze(seed: IdentitySeed, raws: list[RawResult], investigation: Investigat
     investigation.resolved = resolved
     investigation.graph = g
     investigation.assessment = assessment
+
+    # shepherd model audit over the assessment
+    if _SHEPHERD and assessment is not None:
+        try:
+            investigation.audit_findings = _shepherd_audit.audit_assessment(assessment, results, resolved)
+        except Exception:
+            investigation.audit_findings = []
     return investigation
 
 

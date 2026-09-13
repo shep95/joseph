@@ -1,0 +1,26 @@
+{
+  "id": "identity.username_pivot",
+  "version": 1,
+  "status": "active",
+  "domain": ["KNO", "NET"],
+  "context": "a known username can surface accounts across surfaces and yield new identifiers",
+  "trigger": "username_known",
+  "preconditions": ["seed_has_username"],
+  "operations": ["query_username_direct", "query_username_by_surface", "extract_profile_handles", "queue_new_identifiers"],
+  "invariants": ["identifier_must_exist_in_seed_or_evidence"],
+  "constraints": ["never fabricate a username", "public surfaces only"],
+  "failure_modes": ["handle_collision", "namesquatting", "impersonation_account"],
+  "repair_patterns": ["identity.confirmation"],
+  "tests": ["cross_surface_consistency_test"],
+  "falsifiers": ["distinct_person_confirmed_on_surface"],
+  "success_conditions": ["candidate_profile_with_corroboration"],
+  "stopping_conditions": ["no_new_handles"],
+  "relations": {
+    "REQUIRES": ["seed.username"],
+    "DETECTS": ["candidate_profile"],
+    "FEEDS_BACK_TO": ["identity.confirmation"],
+    "FAILS_UNDER": ["handle_collision"]
+  },
+  "confidence": 0.75,
+  "scope": "domain"
+}

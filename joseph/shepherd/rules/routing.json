@@ -1,0 +1,40 @@
+{
+  "_note": "deterministic router. a task is classified from seed features into a task_type, which selects domains and an ordered list of pattern ids. no ai decides this.",
+  "task_types": {
+    "person_research": {
+      "when": ["seed_has_name"],
+      "domains": ["KNO", "NET", "DAT", "SCI", "SEC", "MEA", "TEMP"],
+      "patterns": ["research.document_discovery", "identity.confirmation", "audit.contradiction_check", "temporal.disambiguation"]
+    },
+    "username_research": {
+      "when": ["seed_has_username"],
+      "domains": ["KNO", "NET", "SEC"],
+      "patterns": ["identity.username_pivot", "identity.confirmation", "audit.contradiction_check"]
+    },
+    "domain_research": {
+      "when": ["seed_has_domain"],
+      "domains": ["KNO", "NET", "SEC", "DAT"],
+      "patterns": ["identity.domain_pivot", "identity.confirmation", "audit.contradiction_check"]
+    },
+    "document_research": {
+      "when": ["seed_has_name", "seed_has_organization"],
+      "domains": ["KNO", "DAT"],
+      "patterns": ["research.document_discovery", "identity.confirmation"]
+    },
+    "visual_geo": {
+      "when": ["has_image"],
+      "domains": ["V", "M", "GEO", "SEC"],
+      "patterns": []
+    }
+  },
+  "operation_to_strategy": {
+    "query_name_filetype": ["document:pdf", "document:doc", "org_document"],
+    "query_org_document": ["org_document"],
+    "query_username_direct": ["username_direct"],
+    "query_username_by_surface": ["username_site:"],
+    "query_site_scoped": ["domain_site", "site_target:"],
+    "query_inurl_domain": ["domain_url_lens"],
+    "query_name_direct": ["identity_direct", "identity_org", "identity_full_context"],
+    "generate_contradiction_queries": ["cross_source_corroboration"]
+  }
+}

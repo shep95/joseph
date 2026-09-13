@@ -1,0 +1,26 @@
+{
+  "id": "identity.domain_pivot",
+  "version": 1,
+  "status": "active",
+  "domain": ["KNO", "NET", "SEC"],
+  "context": "a known domain or email domain links to hosted content and organizational identity",
+  "trigger": "domain_known",
+  "preconditions": ["seed_has_domain_or_email"],
+  "operations": ["query_site_scoped", "query_inurl_domain", "extract_linked_domains", "queue_org_and_people"],
+  "invariants": ["record_domain_provenance"],
+  "constraints": ["public dns/web only", "no zone transfer or intrusion"],
+  "failure_modes": ["shared_hosting_false_link", "parked_domain", "cdn_aliasing"],
+  "repair_patterns": ["identity.confirmation"],
+  "tests": ["domain_ownership_consistency_test"],
+  "falsifiers": ["registrant_or_org_mismatch"],
+  "success_conditions": ["domain_linked_to_subject_with_corroboration"],
+  "stopping_conditions": ["no_new_domains"],
+  "relations": {
+    "REQUIRES": ["seed.domain"],
+    "DETECTS": ["associated_domain"],
+    "FEEDS_BACK_TO": ["identity.confirmation"],
+    "FAILS_UNDER": ["shared_hosting_false_link"]
+  },
+  "confidence": 0.7,
+  "scope": "domain"
+}

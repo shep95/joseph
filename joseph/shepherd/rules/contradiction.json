@@ -1,0 +1,9 @@
+{
+  "_note": "deterministic contradiction rules the audit engine applies over findings/claims.",
+  "rules": [
+    {"id": "employment_conflict", "when": ["two_orgs_same_subject_same_interval"], "resolution": "temporal.disambiguation", "status_if_unresolved": "contested"},
+    {"id": "location_conflict", "when": ["two_locations_same_subject_same_interval"], "resolution": "temporal.disambiguation", "status_if_unresolved": "unresolved"},
+    {"id": "competing_profiles", "when": ["multiple_strong_profiles_same_surface"], "resolution": "audit.contradiction_check", "status_if_unresolved": "unresolved"},
+    {"id": "source_collision", "when": ["independent_urls_share_underlying_source"], "resolution": "identity.independence_at_provenance", "status_if_unresolved": "contested"}
+  ]
+}

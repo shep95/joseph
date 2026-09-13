@@ -18,10 +18,52 @@ joseph operates only on publicly accessible information and documented search op
 it does not bypass authentication, access private accounts, or obtain restricted records.
 absence from search results is never treated as proof of absence.
 
+the vision layer is deliberately **not** an unrestricted biometric surveillance tool. face
+matching, scene/landmark geolocation, and perceptual hashing are pluggable evidence
+channels that stay disabled unless an explicitly authorized model backend and a corpus you
+are permitted to search are wired in — joseph ships neither, and those channels report
+`CANNOT_RESOLVE`. visual similarity is evidence for a candidate, never proof of identity;
+face recognition, environment recognition, and geographic evidence are kept as separate
+streams and only correlated by the evidence engine.
+
 ## architecture
+
+shepherd (symbolic control plane) sits *below* the intelligence engine and *above* the
+individual algorithms. it is compiled from the reference "data brains" into machine data,
+not run as an ai:
+
+```
+shepherd/
+  ontology/        domains.json (pattern-forge routing domains) · relations.json
+                   (relation algebra) · flaw_types.json (26 audit classes) ·
+                   pattern_schema.json (universal pattern object) · taxonomy.json (28/274)
+  patterns/osint/  executable universal pattern objects (identity.confirmation, ...)
+  rules/           routing · scoring · validation · contradiction · adaptation
+  registry.py      loads + validates + versions patterns (status lifecycle)
+  knowledge_graph.py  typed pattern graph (executes known relations, no inference)
+  router.py        deterministic task classification -> domains + patterns
+  pattern_engine.py   selects applicable patterns -> maps operations to query strategies
+  creator.py       pattern creator = a compiler (mine -> classify -> score -> test ->
+                   propose candidate; compose / adapt / retire; never overwrites a version)
+  audit.py         model audit over the assessment (flaw taxonomy + contradiction rules)
+```
+
+vision / geo evidence layer -> visual similarity is a *lead*, not proof of identity:
+
+```
+joseph/vision/
+  exif.py          dependency-free exif + gps reader (real, deterministic location evidence)
+  provenance.py    content hash / size / format sniff (chain of custody)
+  channels.py      independent evidence channels; face/scene/phash are DISABLED by
+                   design -> CANNOT_RESOLVE unless an authorized backend + corpus is wired
+  engine.py        evidence engine: keeps streams separate, preserves the epistemic firewall
+```
+
+the pipeline itself:
 
 ```
 identity seed
+    -> shepherd route         (task type, domains, patterns applied)
     -> query grammar         (typed terms; documented operators per provider)
     -> query generator       (query families by strategy)
     -> mutation engine       (synthesis grammar: specialize / generalize / swap_domain)
@@ -73,9 +115,20 @@ tests/
   attaches the full plan (google / bing / ddg strings + urls) as a file.
 - `/joseph investigate` — run the full pipeline and return an ASHERIN INTELLIGENCE
   AGENCY report as both markdown and json. live collection is used only when enabled.
+  the report now includes a **shepherd routing / patterns applied** section (with pattern
+  versions) and a **model audit** section.
+- `/joseph route` — show how shepherd classifies a subject: task type, pattern-forge
+  domains, and which patterns fire. ephemeral, no network.
+- `/joseph vision` — attach an image; returns exif/gps location evidence + content
+  provenance as separate evidence channels. biometric face matching is disabled by design
+  and reported honestly as `CANNOT_RESOLVE`.
+- `/joseph workspace` — create a private research workspace: a category `joseph · <name>`
+  with `case-file / queries / findings / sources / media` channels. `private:true`
+  (default) makes it visible only to you and admins. requires the bot to have the
+  **Manage Channels** permission.
 
-each command takes optional identifiers: `name`, `usernames`, `emails`,
-`organizations`, `locations`, `occupations`, `domains`, `sites`, `filetypes`,
+the investigate/dork/route commands take optional identifiers: `name`, `usernames`,
+`emails`, `organizations`, `locations`, `occupations`, `domains`, `sites`, `filetypes`,
 `exclusions`, `keywords`, `since`, `until` (dates as `YYYY`, `YYYY-MM`, or `YYYY-MM-DD`).
 
 ## local run
@@ -90,6 +143,7 @@ run the tests (no dependencies needed for the engine):
 
 ```bash
 python tests/test_engine.py
+python tests/test_shepherd_vision.py
 ```
 
 ## discord setup
@@ -97,7 +151,8 @@ python tests/test_engine.py
 1. create an application at the discord developer portal.
 2. under **Bot**, create a bot and copy the token into `DISCORD_TOKEN`.
 3. under **Installation** / **OAuth2 -> URL Generator**, select scopes `bot` and
-   `applications.commands`. no privileged intents are required.
+   `applications.commands`. no privileged intents are required. to use
+   `/joseph workspace`, also grant the **Manage Channels** bot permission.
 4. invite the bot to your server with the generated url.
 5. set `GUILD_ID` to your server id for instant slash-command sync during development
    (leave blank for global sync, which can take up to about an hour to appear).
