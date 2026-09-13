@@ -1,3 +1,9 @@
 discord.py>=2.3,<3.0
 aiohttp>=3.9
 python-dotenv>=1.0
+
+# vision layer -> deterministic image measurement (properties, perceptual hashes) and
+# classical face detection. non-ai. numpy ships with opencv.
+Pillow>=10.0
+numpy>=1.24
+opencv-python-headless>=4.8

@@ -20,6 +20,18 @@ from joseph.shepherd.creator import Event, mine, classify, test_against_history 
 from joseph.vision.exif import parse_exif
 from joseph.vision.provenance import analyze_provenance
 from joseph.vision.engine import analyze_image
+from joseph.vision import imaging, faces
+from joseph.vision.channels import (
+    ImagePropertiesChannel, PerceptualHashChannel, FaceDetectionChannel, CANNOT_RESOLVE,
+)
+
+
+def _png_bytes(w=1920, h=1080, color=(12, 34, 56)) -> bytes:
+    from PIL import Image
+    import io as _io
+    buf = _io.BytesIO()
+    Image.new("RGB", (w, h), color).save(buf, format="PNG")
+    return buf.getvalue()
 
 
 def test_registry_loads_and_validates():
@@ -132,6 +144,54 @@ def test_provenance_format_sniff():
     assert analyze_provenance(b"\x89PNG\r\n\x1a\nrest").media_format == "png"
     p = analyze_provenance(b"hello world")
     assert p.size_bytes == 11 and len(p.sha256) == 64
+
+
+def test_image_measurement_deterministic():
+    if not imaging.available():
+        print("    (skip: pillow/numpy not installed)")
+        return
+    data = _png_bytes()
+    m1 = imaging.measure(data)
+    m2 = imaging.measure(data)
+    assert m1.width == 1920 and m1.height == 1080
+    assert m1.fmt == "png"
+    assert m1.likely_screenshot is True          # 1920x1080 is a known screen size
+    assert m1.ahash == m2.ahash and m1.dhash == m2.dhash and m1.phash == m2.phash
+    assert imaging.hamming_hex(m1.phash, m2.phash) == 0
+
+
+def test_image_and_phash_channels_resolve():
+    if not imaging.available():
+        print("    (skip: pillow/numpy not installed)")
+        return
+    data = _png_bytes()
+    r_img = ImagePropertiesChannel().run(data)
+    r_ph = PerceptualHashChannel().run(data)
+    assert r_img.status == "resolved" and r_img.observations["width"] == 1920
+    assert r_ph.status == "resolved" and len(r_ph.observations["phash"]) == 16
+
+
+def test_face_detection_channel_runs():
+    data = _png_bytes(320, 320)
+    res = FaceDetectionChannel().run(data)
+    if faces.available():
+        assert res.status in {"resolved", "partial"}   # a blank image -> 0 faces -> partial
+        assert isinstance(res.observations.get("count"), int)
+    else:
+        assert res.status == CANNOT_RESOLVE
+
+
+def test_analyze_image_surfaces_real_channels():
+    if not imaging.available():
+        print("    (skip: pillow/numpy not installed)")
+        return
+    ev = analyze_image(_png_bytes())
+    names = {c.channel: c.status for c in ev.channels}
+    assert names.get("image") == "resolved"
+    assert names.get("phash") == "resolved"
+    # identity matching + scene stay disabled by design
+    assert names.get("face_recognition") == CANNOT_RESOLVE
+    assert names.get("scene") == CANNOT_RESOLVE
 
 
 def _run_all() -> int:

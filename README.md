@@ -18,13 +18,13 @@ joseph operates only on publicly accessible information and documented search op
 it does not bypass authentication, access private accounts, or obtain restricted records.
 absence from search results is never treated as proof of absence.
 
-the vision layer is deliberately **not** an unrestricted biometric surveillance tool. face
-matching, scene/landmark geolocation, and perceptual hashing are pluggable evidence
-channels that stay disabled unless an explicitly authorized model backend and a corpus you
-are permitted to search are wired in — joseph ships neither, and those channels report
-`CANNOT_RESOLVE`. visual similarity is evidence for a candidate, never proof of identity;
-face recognition, environment recognition, and geographic evidence are kept as separate
-streams and only correlated by the evidence engine.
+the vision layer is deliberately **not** an unrestricted biometric surveillance tool. it
+measures the image itself — properties, perceptual hashes, exif/gps, and classical face
+**detection** (presence/size/quality) — all deterministic and non-ai. it does **not** match
+a face to an identity or a corpus, and does not geolocate by matching scenery against an
+imagery corpus; those channels stay disabled and report `CANNOT_RESOLVE`. visual similarity
+is evidence for a candidate, never proof of identity; visual, metadata, and geographic
+evidence are kept as separate streams and only correlated by the evidence engine.
 
 ## architecture
 
@@ -54,10 +54,27 @@ vision / geo evidence layer -> visual similarity is a *lead*, not proof of ident
 joseph/vision/
   exif.py          dependency-free exif + gps reader (real, deterministic location evidence)
   provenance.py    content hash / size / format sniff (chain of custody)
-  channels.py      independent evidence channels; face/scene/phash are DISABLED by
-                   design -> CANNOT_RESOLVE unless an authorized backend + corpus is wired
+  imaging.py       pillow/numpy: dimensions, dominant colors, screenshot heuristic, and
+                   perceptual hashes (ahash/dhash/phash) for near-duplicate / reuse detection
+  faces.py         opencv haar face DETECTION -> count / box / size / sharpness (measurement)
+  channels.py      independent evidence channels (see below)
   engine.py        evidence engine: keeps streams separate, preserves the epistemic firewall
 ```
+
+vision channels, and the one line between measurement and surveillance:
+
+| channel            | status   | what it does |
+|--------------------|----------|--------------|
+| `provenance`       | enabled  | sha256 / size / format |
+| `image`            | enabled  | dimensions, format, dominant colors, screenshot heuristic |
+| `exif_geo`         | enabled  | exif + gps when the file carries it (real location evidence) |
+| `phash`            | enabled  | perceptual hashes for near-duplicate / image-reuse detection |
+| `face_detection`   | enabled  | face presence / count / size / sharpness — **measurement, never identity** |
+| `face_recognition` | disabled | identity matching against a corpus = biometric surveillance; not shipped |
+| `scene`            | disabled | landmark/satellite geolocation needs an authorized imagery corpus; not shipped |
+
+everything enabled is deterministic and non-ai (fixed resampling, classical CV, pure
+arithmetic). visual similarity is a *lead*, not proof of identity.
 
 the pipeline itself:
 
@@ -119,9 +136,11 @@ tests/
   versions) and a **model audit** section.
 - `/joseph route` — show how shepherd classifies a subject: task type, pattern-forge
   domains, and which patterns fire. ephemeral, no network.
-- `/joseph vision` — attach an image; returns exif/gps location evidence + content
-  provenance as separate evidence channels. biometric face matching is disabled by design
-  and reported honestly as `CANNOT_RESOLVE`.
+- `/joseph vision` — attach an image; returns real measurements as separate evidence
+  channels: content provenance, image properties, exif/gps (when present), perceptual
+  hashes (near-duplicate detection), and classical face **detection** (count/size/
+  sharpness). identity matching and scene geolocation stay disabled by design and report
+  `CANNOT_RESOLVE`.
 - `/joseph workspace` — create a private research workspace: a category `joseph · <name>`
   with `case-file / queries / findings / sources / media` channels. `private:true`
   (default) makes it visible only to you and admins. requires the bot to have the

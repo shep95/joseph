@@ -288,9 +288,19 @@ def register_commands(tree: app_commands.CommandTree, config: Config) -> None:
         embed = discord.Embed(title="joseph -> visual osint evidence", color=0x0B7285)
         for c in ev.channels:
             summary = c.status
-            if c.channel == "exif_geo" and c.status == "resolved" and "gps" in c.observations:
-                g = c.observations["gps"]
+            o = c.observations
+            if c.channel == "exif_geo" and c.status == "resolved" and "gps" in o:
+                g = o["gps"]
                 summary = f"gps {g['lat']}, {g['lon']}"
+            elif c.channel == "provenance" and c.status == "resolved":
+                summary = f"{o.get('format', '?')} · {o.get('size_bytes', 0)} bytes · sha256 {str(o.get('sha256',''))[:12]}…"
+            elif c.channel == "image" and c.status == "resolved":
+                shot = " · likely screenshot" if o.get("likely_screenshot") else ""
+                summary = f"{o.get('width')}x{o.get('height')} {o.get('format')} · {o.get('megapixels')}mp{shot}"
+            elif c.channel == "phash" and c.status == "resolved":
+                summary = f"phash `{o.get('phash')}` · dhash `{o.get('dhash')}` (compare with hamming distance)"
+            elif c.channel == "face_detection" and c.status in ("resolved", "partial"):
+                summary = f"{o.get('count', 0)} face(s) detected · sharpness {o.get('image_sharpness')} (measurement only, no identity)"
             elif c.reason:
                 summary = f"{c.status} -> {c.reason}"
             embed.add_field(name=c.channel, value=summary[:1000], inline=False)
